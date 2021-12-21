@@ -9,7 +9,9 @@ import numpy as np
 import torch.optim as optim
 from tqdm import tqdm
 
-from mynet import LeNet
+# from mynet import LeNet #原始模型 模型1
+
+from shufflenetV2_1_2 import ShuffleNetV2 #模型2
 
 
 def main():
@@ -26,15 +28,15 @@ def main():
                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])}
 
     data_root = os.path.abspath(os.path.join(os.getcwd(), "../.."))  # get data root path
-    image_path = os.path.join(data_root, "I:/classfication", "data")  # flower data set path
+    image_path = os.path.join(data_root, "I:/data", "ZTC950V763_211117")  # flower data set path
     assert os.path.exists(image_path), "{} path does not exist.".format(image_path)
     train_dataset = datasets.ImageFolder(root=os.path.join(image_path, "train"),
                                          transform=data_transform["train"])
     train_num = len(train_dataset)
 
-    
-    clist = train_dataset.class_to_idx
-    cla_dict = dict((val, key) for key, val in clist.items())
+    # {'daisy':0, 'dandelion':1, 'roses':2, 'sunflower':3, 'tulips':4}
+    flower_list = train_dataset.class_to_idx
+    cla_dict = dict((val, key) for key, val in flower_list.items())
     # write dict into json file
     json_str = json.dumps(cla_dict, indent=2)
     with open('class_indices.json', 'w') as json_file:
@@ -69,15 +71,17 @@ def main():
     # print(' '.join('%5s' % cla_dict[test_label[j].item()] for j in range(4)))
     # imshow(utils.make_grid(test_image))
 
-    net = MyNet()
+    # net = LeNet() #原始模型 模型1
+
+    net = ShuffleNetV2([4, 8, 4], [6,12,24,48,96]) #模型2
 
     net.to(device)
     loss_function = nn.CrossEntropyLoss()
     # pata = list(net.parameters())
     optimizer = optim.Adam(net.parameters(), lr=0.0002)
 
-    epochs = 20
-    save_path = './weight/mynet_20.pth'
+    epochs = 50 #训练轮数
+    save_path = './weight/shufflenetv2_Z90_50.pth'
     best_acc = 0.0
     train_steps = len(train_loader)
     for epoch in range(epochs):
