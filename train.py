@@ -8,6 +8,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch.optim as optim
 from tqdm import tqdm
+from utils.dataset import MyFolder
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+import torch.utils.data as Data
 
 # from mynet import LeNet #原始模型 模型1
 
@@ -18,20 +22,61 @@ def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("using {} device.".format(device))
 
-    data_transform = {
-        "train": transforms.Compose([transforms.Resize((128, 128)),
-                                     transforms.RandomHorizontalFlip(),
-                                     transforms.ToTensor(),
-                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
-        "val": transforms.Compose([transforms.Resize((128, 128)),  # cannot 224, must (224, 224)
-                                   transforms.ToTensor(),
-                                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])}
+#---------------------#方法1：数据增强及加载数据#-----------------------------
+    # data_transform = {
+    #     "train": transforms.Compose([transforms.Resize((128, 128)),
+    #                                  # transforms.RandomHorizontalFlip(),
+    #                                  transforms.ToTensor(),
+    #                                  transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
+    #     "val": transforms.Compose([transforms.Resize((128, 128)),  # cannot 224, must (224, 224)
+    #                                transforms.ToTensor(),
+    #                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])}
+    #
+    # data_root = os.path.abspath(os.path.join(os.getcwd(), "../.."))  # get data root path
+    # image_path = os.path.join(data_root, "I:/data", "ZTC950V763_211117")  # flower data set path
+    # assert os.path.exists(image_path), "{} path does not exist.".format(image_path)
+    # train_dataset = datasets.ImageFolder(root=os.path.join(image_path, "train"),
+    #                                      transform=data_transform["train"])
 
+# ------------------------------------------------------#-----------------------------
+
+
+
+# ---------------------#方法2：数据增强ablumentation及加载数据#-----------------------------
+
+    train_transform = A.Compose(
+        [
+            # A.SmallestMaxSize(max_size=160),
+            # A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.05, rotate_limit=15, p=0.5),
+            A.Resize(height=128, width=128),
+            # A.RandomCrop(height=128, width=128),
+            A.RGBShift(r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=0.5),
+            A.RandomBrightnessContrast(p=0.5),
+            A.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+            ToTensorV2(),
+        ])
     data_root = os.path.abspath(os.path.join(os.getcwd(), "../.."))  # get data root path
-    image_path = os.path.join(data_root, "I:/data", "ZTC950V763_211117")  # flower data set path
+    image_path = os.path.join(data_root, "I:/data", "数据集名称")  # flower data set path
     assert os.path.exists(image_path), "{} path does not exist.".format(image_path)
-    train_dataset = datasets.ImageFolder(root=os.path.join(image_path, "train"),
-                                         transform=data_transform["train"])
+
+    train_dataset = MyFolder(root=os.path.join(image_path, "train"), transform=train_transform)
+
+
+    val_transform = A.Compose(
+        [
+            # A.SmallestMaxSize(max_size=160),
+            # A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.05, rotate_limit=15, p=0.5),
+            A.Resize(height=128, width=128),
+            # A.RandomCrop(height=128, width=128),
+            # A.RGBShift(r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=0.5),
+            # A.RandomBrightnessContrast(p=0.5),
+            A.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+            ToTensorV2(),
+        ])
+
+
+# ------------------------------------------------------#-----------------------------
+
     train_num = len(train_dataset)
 
     # {'daisy':0, 'dandelion':1, 'roses':2, 'sunflower':3, 'tulips':4}
@@ -39,26 +84,37 @@ def main():
     cla_dict = dict((val, key) for key, val in flower_list.items())
     # write dict into json file
     json_str = json.dumps(cla_dict, indent=2)
-    with open('class_indices.json', 'w') as json_file:
+    with open('class_indices.json', 'w') as json_file: #除了train 和val文件夹，不要有其他文件夹
         json_file.write(json_str)
 
     batch_size = 32
     nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
     print('Using {} dataloader workers every process'.format(nw))
 
-    train_loader = torch.utils.data.DataLoader(train_dataset,
-                                               batch_size=batch_size, shuffle=True,
-                                               num_workers=nw)
+#---------------------#方法1的：数据加载--------------------------------------------------
+    # train_loader = torch.utils.data.DataLoader(train_dataset,
+    #                                            batch_size=batch_size, shuffle=True,
+    #                                            num_workers=nw)
+    #
+    # validate_dataset = datasets.ImageFolder(root=os.path.join(image_path, "val"),
+    #                                         transform=data_transform["val"])
+    # val_num = len(validate_dataset)
+    # validate_loader = torch.utils.data.DataLoader(validate_dataset,
+    #                                               batch_size=4, shuffle=False,
+    #                                               num_workers=nw)
+# -----------------------------------------------------------------------------------
 
-    validate_dataset = datasets.ImageFolder(root=os.path.join(image_path, "val"),
-                                            transform=data_transform["val"])
-    val_num = len(validate_dataset)
-    validate_loader = torch.utils.data.DataLoader(validate_dataset,
-                                                  batch_size=4, shuffle=False,
-                                                  num_workers=nw)
+# ---------------------#方法2的：数据加载--------------------------------------------------
 
-    print("using {} images for training, {} images for validation.".format(train_num,
-                                                                           val_num))
+    train_loader = Data.DataLoader(dataset=train_dataset, num_workers=nw, batch_size=batch_size, shuffle=True)
+
+    val_Dataset = MyFolder(root=os.path.join(image_path, "val"), transform=val_transform)
+    val_num = len(val_Dataset)
+    validate_loader = torch.utils.data.DataLoader(dataset=val_Dataset, num_workers=nw, batch_size=batch_size, shuffle=True)
+# -----------------------------------------------------------------------------------
+
+    print("using {} images for training, {} images for validation.".format(train_num, val_num))
+    #---------------#查看验证集的图像-------------------
     # test_data_iter = iter(validate_loader)
     # test_image, test_label = test_data_iter.next()
     #
@@ -70,18 +126,20 @@ def main():
     #
     # print(' '.join('%5s' % cla_dict[test_label[j].item()] for j in range(4)))
     # imshow(utils.make_grid(test_image))
+    #----------------------------------------------------------
 
+#---------------#选择模型------------------------------------
     # net = LeNet() #原始模型 模型1
-
-    net = ShuffleNetV2([4, 8, 4], [6,12,24,48,96]) #模型2
+    net = ShuffleNetV2([4, 8, 4], [12, 24, 48, 96, 192]) #模型2
+# ---------------------------------------------------------
 
     net.to(device)
     loss_function = nn.CrossEntropyLoss()
     # pata = list(net.parameters())
     optimizer = optim.Adam(net.parameters(), lr=0.0002)
 
-    epochs = 50 #训练轮数
-    save_path = './weight/shufflenetv2_Z90_50.pth'
+    epochs = 10 #训练轮数
+    save_path = './weight/shufflenetv2_Z90_10.pth'
     best_acc = 0.0
     train_steps = len(train_loader)
     for epoch in range(epochs):

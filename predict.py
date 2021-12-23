@@ -6,7 +6,10 @@ from PIL import Image
 from torchvision import transforms
 import matplotlib.pyplot as plt
 
-from mynet import MyNet
+# from mynet import LeNet #模型1
+
+from shufflenetV2_1_2 import ShuffleNetV2 #模型2
+
 
 
 def main():
@@ -18,7 +21,7 @@ def main():
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     # load image
-    img_path = "I:/classfication/data/test/jpgs_2905.jpg"
+    img_path = "I:/data/mess/jpgs_0055.jpg"
     assert os.path.exists(img_path), "file: '{}' dose not exist.".format(img_path)
     img = Image.open(img_path)
 
@@ -35,11 +38,15 @@ def main():
     json_file = open(json_path, "r")
     class_indict = json.load(json_file)
 
+#--------选择模型---------------------------
     # create model
-    model = LeNet().to(device)
+    # model = LeNet().to(device) #模型14
+    model = ShuffleNetV2([4, 8, 4], [6, 12, 24, 48, 96]).to(device)  # 模型2
+#-------------------------------------------
+
 
     # load model weights
-    weights_path = "./weight/mynet_10.pth"
+    weights_path = "./weight/shufflenetv2_Z90_10.pth"
     assert os.path.exists(weights_path), "file: '{}' dose not exist.".format(weights_path)
     model.load_state_dict(torch.load(weights_path))
 
